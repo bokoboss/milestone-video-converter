@@ -1,0 +1,19 @@
+# Converter outputs and private CCTV data
+output/
+v3-output/
+research/
+*.blk
+*.idx
+*.scp
+*.mkv
+*.mp4
+*.avi
+
+# FFmpeg binaries are distributed separately from the public source repository
+tools/ffmpeg.exe
+tools/ffprobe.exe
+
+# Generated test artifacts
+tests/scratch_*/
+tests/*-results.txt
+tests/*.png
