@@ -25,9 +25,35 @@ try{
     $manifestPath=Join-Path $PSScriptRoot 'tools\manifest.json'
     if(!(Test-Path -LiteralPath $manifestPath)){throw 'Tool manifest is missing. Copy the complete converter folder.'}
     $manifest=Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8|ConvertFrom-Json
+    $toolsDir=Split-Path -Parent $manifestPath
+    $missing=@($manifest | Where-Object { !(Test-Path -LiteralPath (Get-ContainedPath $toolsDir $_.Name) -PathType Leaf) })
+    if($missing.Count){
+        $stage=Join-Path $toolsDir ('.setup-'+[Guid]::NewGuid().ToString('N'))
+        try{
+            New-Item -ItemType Directory -Path $stage -ErrorAction Stop | Out-Null
+            $archive=Join-Path $stage 'ffmpeg.zip'
+            Write-Host 'Downloading FFmpeg Essentials from Gyan (about 109 MB)...'
+            Invoke-WebRequest -UseBasicParsing -Uri 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip' -OutFile $archive -TimeoutSec 300 -ErrorAction Stop
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $zip=[IO.Compression.ZipFile]::OpenRead($archive)
+            try{
+                foreach($entry in $manifest){
+                    $member=$zip.GetEntry(('ffmpeg-9.0.2-essentials_build/bin/'+$entry.Name))
+                    if(!$member -or $member.Length -ne $entry.Bytes){throw 'Expected FFmpeg 9.0.2 Essentials build. See tools/README.md for manual setup.'}
+                    $stagedFile=Get-ContainedPath $stage $entry.Name
+                    [IO.Compression.ZipFileExtensions]::ExtractToFile($member,$stagedFile)
+                    if((Get-FileHash -LiteralPath $stagedFile -Algorithm SHA256 -ErrorAction Stop).Hash -ne $entry.Sha256){throw "Downloaded tool checksum mismatch: $($entry.Name)."}
+                }
+            }finally{$zip.Dispose()}
+            foreach($entry in $missing){
+                [IO.File]::Move((Get-ContainedPath $stage $entry.Name),(Get-ContainedPath $toolsDir $entry.Name))
+            }
+        }finally{
+            if(Test-Path -LiteralPath $stage){Remove-Item -LiteralPath $stage -Recurse -Force}
+        }
+    }
     foreach($entry in $manifest){
         $file=Get-ContainedPath (Join-Path $PSScriptRoot 'tools') $entry.Name
-        if(!(Test-Path -LiteralPath $file -PathType Leaf)){throw "Missing $($entry.Name). The GitHub source repository excludes FFmpeg binaries; see README.md to prepare tools."}
         if((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $entry.Sha256){throw "Tool checksum mismatch: $($entry.Name). Copy the bundle again."}
     }
     foreach($tool in @('ffmpeg','ffprobe')){
@@ -52,3 +78,4 @@ try{
     Write-Host 'No installation, registry, PATH or execution policy changes were made.'
     exit 0
 }catch{Write-Host ('CHECK FAILED: '+$_.Exception.ToString()) -ForegroundColor Red;exit 1}
+

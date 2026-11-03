@@ -11,7 +11,7 @@ The public GitHub source repository excludes the FFmpeg/FFprobe executable files
 - License: GNU GPL version 3 or later. Full license: `tools/LICENSE`.
 - Original build README/configuration: `tools/FFmpeg-README.txt`.
 - Binary SHA-256 values expected by setup: `tools/manifest.json`.
-- No modifications were made to these executables. They are invoked as separate processes. No runtime download occurs.
+- No modifications were made to these executables. They are invoked as separate processes. Setup downloads missing tools directly from Gyan. Conversion runs offline.
 
 Retain these notices and the license with copied bundles. For redistribution beyond the user's own machines, obtain the complete corresponding source and build/dependency materials required by the GPL from the build provider; a link to upstream FFmpeg alone is not a complete source bundle.
 
@@ -22,3 +22,4 @@ The converter does **not** redistribute or decompile Milestone software in its d
 Tested export's Client product version: 11.2.3116.1; its Toolkit is x86 and has no file version resource. Other exported Player versions are checked per job but require testing. No SDK installer or server connection is used.
 
 Reference: https://doc.developer.milestonesys.com/mipsdk/gettingstarted/intro_analytics.html
+
