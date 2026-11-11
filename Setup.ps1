@@ -62,19 +62,22 @@ try{
     }
     $test=Join-Path $PSScriptRoot ('.write-test-'+[Guid]::NewGuid().ToString('N'))
     [IO.File]::WriteAllText($test,'test');Remove-Item -LiteralPath $test
-    if(!$Source){
-        $d=New-Object Windows.Forms.FolderBrowserDialog;$d.Description='Select a complete Milestone export to test its included Toolkit'
-        try{if($d.ShowDialog() -eq 'OK'){$Source=$d.SelectedPath}}finally{$d.Dispose()}
+    # Machine readiness and recording compatibility are independent checks.
+    # CCTV data is not required during initial setup.
+    if($Source){
+        if(!(Test-Path -LiteralPath $Source -PathType Container)){throw "Recording folder does not exist: $Source"}
+        $cameras=@(Get-SourceCameras $Source)
+        if(!$cameras.Count){throw 'No supported camera database found in the specified recording folder.'}
+        foreach($camera in $cameras){
+            $hostPath=Get-PowerShellHost $camera.Architecture
+            & $hostPath -NoProfile -File "$PSScriptRoot\Setup.ps1" -ToolkitProbe -ToolkitDirectory $camera.Toolkit -Bank $camera.Bank -Table $camera.Table
+            if($LASTEXITCODE -ne 0){throw 'Toolkit compatibility check failed for this recording.'}
+        }
+        Write-Host ('PASS: tools ready; Toolkit tested with '+$cameras.Count+' camera(s).') -ForegroundColor Green
+    }else{
+        Write-Host 'PASS: converter tools ready. No CCTV recording folder is needed during setup.' -ForegroundColor Green
+        Write-Host 'To test a particular export, run setup.bat -Source "C:\recording-folder".'
     }
-    if(!$Source){throw 'Toolkit not tested. Run setup.bat again and select a complete recording folder.'}
-    $cameras=@(Get-SourceCameras $Source)
-    if(!$cameras.Count){throw 'No supported camera database found.'}
-    foreach($camera in $cameras){
-        $hostPath=Get-PowerShellHost $camera.Architecture
-        & $hostPath -NoProfile -File "$PSScriptRoot\Setup.ps1" -ToolkitProbe -ToolkitDirectory $camera.Toolkit -Bank $camera.Bank -Table $camera.Table
-        if($LASTEXITCODE -ne 0){throw 'Toolkit prerequisite check failed. No components were installed.'}
-    }
-    Write-Host ('PASS: '+$cameras.Count+' camera(s). Open start.bat to convert.') -ForegroundColor Green
     Write-Host 'No installation, registry, PATH or execution policy changes were made.'
     exit 0
 }catch{Write-Host ('CHECK FAILED: '+$_.Exception.ToString()) -ForegroundColor Red;exit 1}
